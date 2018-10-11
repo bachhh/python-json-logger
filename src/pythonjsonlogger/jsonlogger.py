@@ -6,6 +6,7 @@ import logging
 import json
 import re
 from datetime import date, datetime, time
+import time
 import traceback
 import importlib
 
@@ -111,6 +112,8 @@ class JsonFormatter(logging.Formatter):
         reserved_attrs = kwargs.pop("reserved_attrs", RESERVED_ATTRS)
         self.reserved_attrs = dict(zip(reserved_attrs, reserved_attrs))
         self.timestamp = kwargs.pop("timestamp", False)
+        self._dict_prepro = self._str_to_fn(kwargs.pop("dict_prepro", None))
+        self._time_fmt = kwargs.pop("timefmt", "%Y-%m-%dT%H:%M:%s")
 
         # super(JsonFormatter, self).__init__(*args, **kwargs)
         logging.Formatter.__init__(self, *args, **kwargs)
@@ -158,7 +161,7 @@ class JsonFormatter(logging.Formatter):
 
         if self.timestamp:
             key = self.timestamp if type(self.timestamp) == str else 'timestamp'
-            log_record[key] = datetime.utcnow()
+            log_record[key] = time.strftime(self._time_fmt)
 
     def process_log_record(self, log_record):
         """
@@ -201,5 +204,8 @@ class JsonFormatter(logging.Formatter):
 
         self.add_fields(log_record, record, message_dict)
         log_record = self.process_log_record(log_record)
+
+        if self._dict_prepro is not None:
+            self._dict_prepro(log_record)
 
         return "%s%s" % (self.prefix, self.jsonify_log_record(log_record))
